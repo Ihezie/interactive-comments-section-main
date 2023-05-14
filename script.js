@@ -21,10 +21,11 @@ async function getData(){
     const uniData = await response.json();
     const currentUserData = uniData.currentUser;
     const commentsData = uniData.comments;
+    const commentsDataString = JSON.stringify(commentsData)
+    localStorage.setItem('comments', commentsDataString);
     commentsData.forEach(commentData => {
         populateWebpage(currentUserData, commentData);
     });
-    return uniData;
 }
 
 const bluePrint = `<div class="vote-controls">
@@ -179,18 +180,8 @@ async function createUserInput(e, inputType, replyingTo){
       const existingRepliesCon = commentsCon.querySelector(`#replies-to-${replyingToId}`);
       const replyingToType = replyingTo.classList[0];
       const replyInputBox = document.getElementById('add-reply');
-      const replyingToUsername = content.match(/^\@\w+/gi);
 
-      if(replyingToUsername){
-        replyingToUsername.forEach(username => {
-          content = content.replace(username, `<span class="replying-to">${username}</span>`);
-          userInputElement.querySelector('.content').innerHTML = content;
-        })
-      }
-      else{
-        const username =  replyingTo.querySelector('.info .username').textContent;
-        userInputElement.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${username} </span>`);
-      }
+      formatReplyingToUsername(content, userInputElement, replyingTo);
 
       if(existingRepliesCon){
         existingRepliesCon.appendChild(userInputElement);
@@ -206,7 +197,6 @@ async function createUserInput(e, inputType, replyingTo){
         repliesCon.appendChild(userInputElement);
       }
       replyInputBox.remove();
-      replyInputBoxIsActive = false
     }
     else{
       commentsCon.appendChild(userInputElement);
@@ -222,12 +212,24 @@ async function createUserInput(e, inputType, replyingTo){
     });
   }
 }
+function formatReplyingToUsername(content, element, replyingTo){
+  const replyingToUsername = content.match(/^\@\w+/gi);
+
+  if(replyingToUsername){
+    replyingToUsername.forEach(username => {
+      content = content.replace(username, `<span class="replying-to">${username}</span>`);
+      element.querySelector('.content').innerHTML = content;
+    })
+  }
+  else{
+    const username =  replyingTo.querySelector('.info .username').textContent;
+    element.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${username} </span>`);
+  }
+}
 
 function createTimeStamp(){
   const dateAdded = new Date().getTime();
 }
-
-let replyInputBoxIsActive = false;
 
 function displayReplyInputBox(e){
   const existingReplyBox = document.getElementById('add-reply');
@@ -252,7 +254,6 @@ function displayReplyInputBox(e){
     addReplyBtn.addEventListener('click', (e)=>{
       createUserInput(e, 'reply', replyingTo)
     } );
-    replyInputBoxIsActive = true;
   }
 }
 function deleteItem(e){
@@ -275,18 +276,16 @@ function deleteItem(e){
   confirmDelBtn.addEventListener('click', ()=>{
     deleteThis.remove();
     // remove from local storage
-    document.body.removeChild(confirmModal)
-    console.log(deleteThis);
+    document.body.removeChild(confirmModal);
   })
   const cancelDelBtn = confirmModal.querySelector('#cancel-del-btn');
   cancelDelBtn.addEventListener('click', ()=>{
-    document.body.removeChild(confirmModal)
+    document.body.removeChild(confirmModal);
   })
 }
 
 let updateItemInputIsActive = false;
 function updateItem(e){
-  const existingUpdateItemInput = document.getElementById('update-input');
   if(!(updateItemInputIsActive)){
     const updateThis = e.currentTarget.parentElement.parentElement;
     const updateThisContent = updateThis.querySelector('.content');
@@ -307,6 +306,7 @@ function updateItem(e){
     updateBtn.addEventListener('click', (e)=>{
       updateThisContent.textContent = updateItemInput.value;
       updateThis.replaceChild(updateThisContent, updateItemInput);
+      formatReplyingToUsername(updateThisContent.textContent, updateThis);
       updateBtn.remove();
       // updateLocalStorage;
       updateItemInputIsActive = false;
@@ -352,35 +352,3 @@ function orderComments(){
     })
   })
 }
-
-// const numbers = [12, 3, 34, 2, 56, 24];
-// numbers.sort(compareFn);
-// console.log(numbers);
-
-// const products = [
-//   {
-//     name: 'laptop',
-//     price: 1000
-//   },
-//   {
-//     name: 'desktop',
-//     price: 1500
-//   },
-//   {
-//     name: 'phone',
-//     price: 500
-//   }
-// ]
-// products.sort((a, b)=>{
-//   return a.price - b.price;
-// })
-// console.log(products);
-
-
-// function compareFn(a, b){
-//   // 1. < 0... a comes first
-//   // 2. 0 ... nothing will be changed
-//   // 3. > 0 ... b comes first
-
-//   return a - b;
-// }
