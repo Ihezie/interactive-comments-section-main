@@ -17,15 +17,21 @@ addCommentBtn.addEventListener('click', (e)=>{
 
 /***FUNCTIONS***/
 async function getData(){
-    const response = await fetch('./data.json');
-    const uniData = await response.json();
-    const currentUserData = uniData.currentUser;
-    const commentsData = uniData.comments;
-    const commentsDataString = JSON.stringify(commentsData)
-    localStorage.setItem('comments', commentsDataString);
-    commentsData.forEach(commentData => {
-        populateWebpage(currentUserData, commentData);
-    });
+  const response = await fetch('./data.json');
+  const uniData = await response.json();
+  const currentUserData = uniData.currentUser;
+  const commentsData = uniData.comments;
+  commentsData.forEach(commentData => {
+    if(!(localStorage.getItem(`comment-${commentData.id}`))){
+      localStorage.setItem(`comment-${commentData.id}`, JSON.stringify(commentData));
+    }
+  });
+  for(let i = 0; i < localStorage.length; i++){
+    const commentKey = localStorage.key(i);
+    const comment = JSON.parse(localStorage.getItem(commentKey)); 
+    populateWebpage(currentUserData, comment);
+  }
+  orderComments();
 }
 
 const bluePrint = `<div class="vote-controls">
@@ -68,22 +74,22 @@ function createRepliesCon(){
   return repliesCon;
 }
 function populateWebpage(currentUserData, commentData){
-    const commentElement = constructElement(currentUserData, commentData, 'comment');
+  const commentElement = constructElement(currentUserData, commentData, 'comment');
 
-    commentsCon.appendChild(commentElement);
+  commentsCon.appendChild(commentElement);
 
-    if(commentData.replies.length > 0){
-      const repliesData = commentData.replies;
-      const repliesCon = createRepliesCon();
-      repliesCon.setAttribute('id', `replies-to-${commentData.id}`)
+  if(commentData.replies.length > 0){
+    const repliesData = commentData.replies;
+    const repliesCon = createRepliesCon();
+    repliesCon.setAttribute('id', `replies-to-${commentData.id}`)
 
-      repliesData.forEach(replyData=>{
-        const replyElement = constructElement(currentUserData, replyData, 'reply');
-        replyElement.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${replyData.replyingTo} </span>` );
-        repliesCon.appendChild(replyElement);
-      })
-      commentsCon.appendChild(repliesCon);
-    }
+    repliesData.forEach(replyData=>{
+      const replyElement = constructElement(currentUserData, replyData, 'reply');
+      replyElement.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${replyData.replyingTo} </span>` );
+      repliesCon.appendChild(replyElement);
+    })
+    commentsCon.appendChild(repliesCon);
+  }
 }
 function constructElement(currentUserData, elementData, elementType){
   const element = document.createElement('div');
@@ -117,6 +123,11 @@ function constructElement(currentUserData, elementData, elementType){
   downVoteBtn.addEventListener('click', (e)=>{
     downVote(e);
   })
+  const dateAddedInMS = elementData.dateAddedInMS;
+  if(dateAddedInMS){
+    updateTimeStamp(dateAddedInMS, element);
+    element.dataset.dateAddedInMS = dateAddedInMS;
+  }
   return element;
 }
 function addCurrentUserFeatures(element, elementType){
@@ -156,7 +167,11 @@ async function createUserInput(e, inputType, replyingTo){
     const uniData = await response.json();
     const currentUserData = uniData.currentUser;
     const userInputElement = document.createElement('div');
+    const id = generateID();
+    const dateAddedInMS = dateAdded();
     userInputElement.classList.add(inputType, 'box-design');
+    userInputElement.dataset.dateAddedInMS = dateAddedInMS;
+    userInputElement.setAttribute('id', id);
     userInputElement.innerHTML = bluePrint;
     addCurrentUserFeatures(userInputElement, inputType);
     userInputElement.querySelector('.content').textContent = content;
@@ -181,7 +196,8 @@ async function createUserInput(e, inputType, replyingTo){
       const replyingToType = replyingTo.classList[0];
       const replyInputBox = document.getElementById('add-reply');
 
-      formatReplyingToUsername(content, userInputElement, replyingTo);
+      const replyingToUsername = replyingTo.querySelector('.info .username').textContent;
+      formatReplyingToUsername(content, userInputElement, replyingToUsername);
 
       if(existingRepliesCon){
         existingRepliesCon.appendChild(userInputElement);
@@ -197,9 +213,11 @@ async function createUserInput(e, inputType, replyingTo){
         repliesCon.appendChild(userInputElement);
       }
       replyInputBox.remove();
+      addToLocalStorage(id, content, 0, dateAddedInMS, replyingTo, currentUserData.image.png, currentUserData.username);
     }
     else{
       commentsCon.appendChild(userInputElement);
+      addToLocalStorage(id, content, 0, dateAddedInMS, null, currentUserData.image.png, currentUserData.username);
     }
 
     const deleteBtn = userInputElement.querySelector('.delete-btn');
@@ -210,27 +228,58 @@ async function createUserInput(e, inputType, replyingTo){
     editBtn.addEventListener('click', (e)=>{
       updateItem(e);
     });
+    updateTimeStamp(dateAddedInMS, userInputElement);
   }
 }
-function formatReplyingToUsername(content, element, replyingTo){
-  const replyingToUsername = content.match(/^\@\w+/gi);
+function generateID(){
+  const id = Math.floor(Math.random() * Date.now());
+  return id;
+}
+function formatReplyingToUsername(content, element, replyingToUsername){
+  content = content.replace(/^\@\w+\,?/i, '');
+  element.querySelector('.content').innerHTML = content;
+  element.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${replyingToUsername}</span>`);
 
-  if(replyingToUsername){
-    replyingToUsername.forEach(username => {
-      content = content.replace(username, `<span class="replying-to">${username}</span>`);
-      element.querySelector('.content').innerHTML = content;
-    })
-  }
-  else{
-    const username =  replyingTo.querySelector('.info .username').textContent;
-    element.querySelector('.content').insertAdjacentHTML('afterbegin',  `<span class="replying-to">@${username} </span>`);
-  }
 }
 
-function createTimeStamp(){
-  const dateAdded = new Date().getTime();
+function dateAdded(){
+  const dateAddedInMS = new Date().getTime();
+  return dateAddedInMS;
 }
-
+function updateTimeStamp(dateAddedInMS, element){
+    const timestampElement = element.querySelector('.time-stamp');
+    const currentDate = new Date().getTime();
+    let timestamp = currentDate - dateAddedInMS;
+    timestamp = Math.ceil(timestamp/1000);
+    if(timestamp < 60){
+      timestampElement.innerHTML = `${timestamp} secs ago`;
+    }
+    else if(timestamp < 3600){
+      inputTimeStamp(60, 'min');
+    }
+    else if(timestamp < 86400){
+      inputTimeStamp(3600, 'hour');
+    }
+    else if(timestamp < 604800){
+      inputTimeStamp(86400, 'day');
+    }
+    else if(timestamp < 2.628e+6){
+      inputTimeStamp(604800, 'week');
+    }
+    else if(timestamp < 3.154e+7){
+      inputTimeStamp(2.628e+6, 'month');
+    }
+    else{
+      inputTimeStamp(2.628e+6, 'years');
+    }
+    function inputTimeStamp(divisor, unit){
+      timestamp = Math.floor(timestamp/divisor);
+      if(timestamp > 1){
+        unit = unit + 's';
+      }
+      timestampElement.innerHTML = `${timestamp} ${unit} ago`;
+    }
+}
 function displayReplyInputBox(e){
   const existingReplyBox = document.getElementById('add-reply');
   if(existingReplyBox){
@@ -274,8 +323,8 @@ function deleteItem(e){
   document.body.appendChild(confirmModal);
   const confirmDelBtn = confirmModal.querySelector('#confirm-del-btn');
   confirmDelBtn.addEventListener('click', ()=>{
+    deleteFromLocalStorage(deleteThis);
     deleteThis.remove();
-    // remove from local storage
     document.body.removeChild(confirmModal);
   })
   const cancelDelBtn = confirmModal.querySelector('#cancel-del-btn');
@@ -289,7 +338,12 @@ function updateItem(e){
   if(!(updateItemInputIsActive)){
     const updateThis = e.currentTarget.parentElement.parentElement;
     const updateThisContent = updateThis.querySelector('.content');
-    const userControls = updateThis.querySelector('.user-controls')
+    let replyingToUsername = updateThisContent.querySelector('.content .replying-to');
+    if(replyingToUsername){
+      replyingToUsername = replyingToUsername.textContent;
+      replyingToUsername = replyingToUsername.replace('@', '');
+    }
+    const userControls = updateThis.querySelector('.user-controls');
     const updateItemInput = document.createElement('textarea');
     const updateBtn = document.createElement('button');
     updateBtn.type = 'button';
@@ -306,25 +360,31 @@ function updateItem(e){
     updateBtn.addEventListener('click', (e)=>{
       updateThisContent.textContent = updateItemInput.value;
       updateThis.replaceChild(updateThisContent, updateItemInput);
-      formatReplyingToUsername(updateThisContent.textContent, updateThis);
+      if(updateThis.classList.contains('reply')){
+        formatReplyingToUsername(updateThisContent.textContent, updateThis, replyingToUsername);
+      }
+      updateItemInLocalStorage('content', updateThisContent.textContent, updateThis);
       updateBtn.remove();
-      // updateLocalStorage;
       updateItemInputIsActive = false;
     })
   }
 }
 function upVote(e){
   const score = e.currentTarget.parentElement.querySelector('.score');
-  score.textContent =  Number(score.textContent) + 1;
-  // update Local Storage
+  const parentElementOfScore = e.currentTarget.parentElement.parentElement;
+  let scoreValue = Number(score.textContent);
+  score.textContent = ++scoreValue;
   orderComments();
+  updateItemInLocalStorage('score', scoreValue, parentElementOfScore);
 }
 function downVote(e){
-  let score = e.currentTarget.parentElement.querySelector('.score');
+  const score = e.currentTarget.parentElement.querySelector('.score');
+  const parentElementOfScore = e.currentTarget.parentElement.parentElement;
   if(score.textContent > 0){
-    score.textContent = Number(score.textContent) - 1;
-    // update local storage
+    let scoreValue = Number(score.textContent);
+    score.textContent = --scoreValue;
     orderComments();
+    updateItemInLocalStorage('score', scoreValue, parentElementOfScore);
   }
 }
 function orderComments(){
@@ -332,6 +392,7 @@ function orderComments(){
   const commentsArr = [];
   const replyCons = [];
   const replyConIDs = [];
+
   commentsNodeList.forEach( comment =>{
     commentsArr.push(comment);
     replyConIDs.push(comment.getAttribute('id'));
@@ -339,7 +400,11 @@ function orderComments(){
   replyConIDs.forEach( id =>{
     replyCons.push(document.getElementById(`replies-to-${id}`))
   })
-
+  commentsArr.sort((a, b) =>{
+    if(a.dataset.dateAddedInMS && b.dataset.dateAddedInMS){
+      return a.dataset.dateAddedInMS - b.dataset.dateAddedInMS
+    }
+  });
   commentsArr.sort((a, b)=> b.querySelector('.score').textContent - a.querySelector('.score').textContent)
   commentsArr.forEach(comment => {
     commentsCon.appendChild(comment);
@@ -351,4 +416,87 @@ function orderComments(){
       }
     })
   })
+}
+function addToLocalStorage(id, content, score, dateAddedInMS, replyingTo, image, username){
+  content = content.replace(/^\@\w+\,\s/i, '');
+  const userInput = {
+    id,
+    content,
+    score,
+    dateAddedInMS,
+    user: {
+      image: {
+        png: image
+      },
+      username
+    },
+    replies: []
+  }
+  if(replyingTo){
+    userInput.replyingTo = replyingTo.querySelector('.info .username').textContent;
+    const parentOfReplyingTo = replyingTo.parentElement;
+    // This condition checks the nature of what is being replied to, a comment or a reply
+    let parentCommentKey;
+    if(parentOfReplyingTo.classList.contains('replies-con')){
+      parentCommentKey = parentOfReplyingTo.getAttribute('id');
+      parentCommentKey = parentCommentKey.substring(11);
+    }
+    else{
+      parentCommentKey = replyingTo.getAttribute('id');
+    }
+    parentCommentKey = 'comment-' + parentCommentKey;
+    const parentComment = JSON.parse(localStorage.getItem(parentCommentKey));
+    parentComment.replies.push(userInput);
+    localStorage.setItem(parentCommentKey, JSON.stringify(parentComment)); 
+  }
+  else{
+    localStorage.setItem(`comment-${id}`, JSON.stringify(userInput));
+  }
+}
+function deleteFromLocalStorage(deleteThis){
+  const deleteThisID = deleteThis.getAttribute('id');
+  if(deleteThis.classList.contains('reply')){
+    let parentCommentKey = deleteThis.parentElement.getAttribute('id');
+    parentCommentKey = 'comment-' + parentCommentKey.substring(11);
+    const parentComment = JSON.parse(localStorage.getItem(parentCommentKey));
+    parentComment.replies = parentComment.replies.filter( reply => reply.id != deleteThisID);
+    localStorage.setItem(parentCommentKey, JSON.stringify(parentComment));
+  }
+  else{
+    const commentKey = 'comment-' + deleteThisID;
+    localStorage.removeItem(commentKey);
+  }
+}
+function updateItemInLocalStorage(propertyName, value, element){
+  const elementID = element.getAttribute('id');
+  if(propertyName === 'content'){
+    value = value.replace(/^\@\w+\,?\s/i, '');
+  }
+  if(element.classList.contains('reply')){
+    let parentCommentKey = element.parentElement.getAttribute('id');
+    parentCommentKey = 'comment-' + parentCommentKey.substring(11);
+    const parentComment = JSON.parse(localStorage.getItem(parentCommentKey));
+    parentComment.replies.forEach(reply => {
+      if(reply.id == elementID){
+        if(propertyName === 'content'){
+          reply.content = value;
+        }
+        else{
+          reply.score = value;
+        }
+      }
+    });
+    localStorage.setItem(parentCommentKey, JSON.stringify(parentComment));
+  }
+  else{
+    const commentKey = 'comment-' + elementID;
+    const comment = JSON.parse(localStorage.getItem(commentKey));
+    if(propertyName === 'content'){
+      comment.content = value;
+    }
+    else{
+      comment.score = value;
+    }
+    localStorage.setItem(commentKey, JSON.stringify(comment));
+  }
 }

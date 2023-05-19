@@ -309,6 +309,9 @@ main{
     main{
         width: 70%;
     }
+    .reply-info{
+        width: 60%;
+    }
     .current-user-comment, .current-user-reply{
         min-height: 5rem;
     }
