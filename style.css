@@ -275,6 +275,11 @@ main{
 #confirm-del-btn:hover{
     background-color: var(--pale-red);
 }
+#update-item-btn{
+    position: absolute;
+    right: 1.5rem;
+    bottom: .5rem;
+}
 
 /* ATTRIBUTION STYLES */
 .attribution { 
@@ -331,8 +336,11 @@ main{
     main{
         width: 90%;
     }
-    .content, .current-user-reply .content, .current-user-comment .content{
+    .content, .current-user-reply .content, .current-user-comment .content, #update-input{
         margin: 1rem 0 2rem ;
+    }
+    #update-input{
+        width: 100%;
     }
     .vote-controls{
         bottom: .6rem;

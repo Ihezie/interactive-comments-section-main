@@ -350,13 +350,15 @@ function updateItem(e){
     updateBtn.classList.add('blue-btn');
     updateBtn.setAttribute('id', 'update-item-btn');
     updateBtn.textContent = 'update';
-    userControls.appendChild(updateBtn);
+    updateThis.appendChild(updateBtn);
     updateItemInput.setAttribute('id', 'update-input');
     updateItemInput.classList.add('input-box');
     updateItemInput.value = updateThisContent.textContent;
     updateThis.replaceChild(updateItemInput, updateThisContent);
     updateItemInputIsActive = true;
-
+    if(innerWidth <= 950){
+      userControls.style.display = 'none';
+    }
     updateBtn.addEventListener('click', (e)=>{
       updateThisContent.textContent = updateItemInput.value;
       updateThis.replaceChild(updateThisContent, updateItemInput);
@@ -366,6 +368,7 @@ function updateItem(e){
       updateItemInLocalStorage('content', updateThisContent.textContent, updateThis);
       updateBtn.remove();
       updateItemInputIsActive = false;
+      userControls.style.display = 'flex';
     })
   }
 }
@@ -418,7 +421,7 @@ function orderComments(){
   })
 }
 function addToLocalStorage(id, content, score, dateAddedInMS, replyingTo, image, username){
-  content = content.replace(/^\@\w+\,\s/i, '');
+  content = content.replace(/^\@\w+\,?\s+/i, '');
   const userInput = {
     id,
     content,
